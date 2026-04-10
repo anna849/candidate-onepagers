@@ -42,11 +42,12 @@
       align-items: center;
     }
 
+    /* Symbol grid canvas */
+    .hero canvas { position:absolute; inset:0; pointer-events:none; z-index:1; }
+
     /* Soft bottom fade hero → paper */
     .hero::after { content:''; position:absolute; bottom:-2px; left:0; right:0; height:72px; background:linear-gradient(to top, var(--paper), transparent); z-index:2; pointer-events:none; }
 
-    /* Scatter canvas */
-    .hero canvas { position:absolute; inset:0; pointer-events:none; z-index:1; }
 
     .hero-inner { position:relative; z-index:3; max-width:860px; margin:0 auto; width:100%; }
 
@@ -247,7 +248,7 @@
 
 <!-- HERO -->
 <div class="hero">
-  <canvas id="sc"></canvas>
+  <canvas id="sg"></canvas>
   <div class="hero-inner">
 
     <!-- Numeric logo mark -->
@@ -568,117 +569,96 @@
 </div><!-- /wrap -->
 
 <script>
-/* ── GEOMETRIC SHAPES ANIMATION ── */
+/* ── SYMBOL GRID (numeric.io style) ── */
 (function(){
-  const c = document.getElementById('sc');
+  const c = document.getElementById('sg');
   const ctx = c.getContext('2d');
-  /* shape types: 0=diamond, 1=square, 2=circle, 3=plus, 4=cross, 5=dot, 6=ring, 7=hollowSquare */
-  const SHAPES = 8;
-  let pts=[], W=0, H=0;
+  const SYMS = ['+','•','○','=','—','·','×','◆','□','◇'];
+  const GAP = 26;          /* spacing between symbols */
+  const FONT_SIZE = 13;
+  let cols=0, rows=0, W=0, H=0;
+  let grid=[];              /* {sym, nextSym, t, delay, dur} */
 
-  function P(init){
-    this.x = Math.random()*(W||800);
-    this.y = Math.random()*(H||400);
-    this.vx = (Math.random()-.5)*.35;
-    this.vy = (Math.random()-.5)*.35;
-    this.shape = Math.floor(Math.random()*SHAPES);
-    this.size = 4+Math.random()*14;
-    this.rot = Math.random()*Math.PI*2;
-    this.rotSpd = (Math.random()-.5)*.008;
-    this.maxOp = .12+Math.random()*.35;
-    this.op = init ? Math.random()*this.maxOp : 0;
-    this.holdFor = 200+Math.random()*400;
-    this.held = 0;
-    this.spd = .002+Math.random()*.003;
-    this.phase = init ? (Math.random()>.5?'hold':'in') : 'in';
-  }
-
-  P.prototype.tick = function(){
-    this.x += this.vx;
-    this.y += this.vy;
-    this.rot += this.rotSpd;
-    if(this.x<-30) this.x=W+30;
-    if(this.x>W+30) this.x=-30;
-    if(this.y<-30) this.y=H+30;
-    if(this.y>H+30) this.y=-30;
-    if(this.phase==='in'){
-      this.op+=this.spd;
-      if(this.op>=this.maxOp){this.op=this.maxOp;this.phase='hold';}
-    } else if(this.phase==='hold'){
-      if(++this.held>=this.holdFor) this.phase='out';
-    } else {
-      this.op-=this.spd;
-      if(this.op<=0) Object.assign(this,new P(false));
-    }
-  };
-
-  function drawShape(p){
-    ctx.save();
-    ctx.translate(p.x, p.y);
-    ctx.rotate(p.rot);
-    ctx.globalAlpha = p.op;
-    ctx.strokeStyle = '#fff';
-    ctx.fillStyle = '#fff';
-    ctx.lineWidth = 1.5;
-    const s = p.size;
-
-    switch(p.shape){
-      case 0: /* diamond */
-        ctx.beginPath();
-        ctx.moveTo(0,-s); ctx.lineTo(s,0); ctx.lineTo(0,s); ctx.lineTo(-s,0);
-        ctx.closePath(); ctx.fill();
-        break;
-      case 1: /* filled square */
-        ctx.fillRect(-s*.6,-s*.6, s*1.2, s*1.2);
-        break;
-      case 2: /* circle */
-        ctx.beginPath(); ctx.arc(0,0,s*.6,0,Math.PI*2); ctx.fill();
-        break;
-      case 3: /* plus */
-        ctx.lineWidth = s*.25;
-        ctx.beginPath();
-        ctx.moveTo(0,-s); ctx.lineTo(0,s);
-        ctx.moveTo(-s,0); ctx.lineTo(s,0);
-        ctx.stroke();
-        break;
-      case 4: /* cross / x */
-        ctx.lineWidth = s*.2;
-        ctx.beginPath();
-        ctx.moveTo(-s*.7,-s*.7); ctx.lineTo(s*.7,s*.7);
-        ctx.moveTo(s*.7,-s*.7); ctx.lineTo(-s*.7,s*.7);
-        ctx.stroke();
-        break;
-      case 5: /* dot */
-        ctx.beginPath(); ctx.arc(0,0,s*.3,0,Math.PI*2); ctx.fill();
-        break;
-      case 6: /* ring */
-        ctx.lineWidth = 1.5;
-        ctx.beginPath(); ctx.arc(0,0,s*.55,0,Math.PI*2); ctx.stroke();
-        break;
-      case 7: /* hollow square */
-        ctx.lineWidth = 1.5;
-        ctx.strokeRect(-s*.55,-s*.55, s*1.1, s*1.1);
-        break;
-    }
-    ctx.restore();
-  }
-
-  function resize(){
-    W = c.width = c.parentElement.offsetWidth;
+  function initGrid(){
+    W = c.width  = c.parentElement.offsetWidth;
     H = c.height = c.parentElement.offsetHeight;
-    const count = Math.floor(W*H/3200);
-    pts = Array.from({length:count}, ()=>new P(true));
+    cols = Math.ceil(W/GAP)+1;
+    rows = Math.ceil(H/GAP)+1;
+    grid = [];
+    for(let r=0;r<rows;r++){
+      for(let cl=0;cl<cols;cl++){
+        grid.push({
+          sym:  SYMS[Math.floor(Math.random()*SYMS.length)],
+          nextSym: SYMS[Math.floor(Math.random()*SYMS.length)],
+          t: 1,                                     /* 1 = showing current sym */
+          delay: Math.random()*6000,                 /* ms before first morph */
+          dur: 800+Math.random()*1200,               /* morph duration */
+          timer: 0
+        });
+      }
+    }
   }
 
-  (function loop(){
-    ctx.clearRect(0,0,W,H);
-    pts.forEach(p=>{ p.tick(); drawShape(p); });
-    ctx.globalAlpha = 1;
-    requestAnimationFrame(loop);
-  })();
+  let last = 0;
+  function loop(now){
+    if(!last) last=now;
+    const dt = now-last; last=now;
 
-  window.addEventListener('resize', resize);
-  resize();
+    ctx.clearRect(0,0,W,H);
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.font = FONT_SIZE+'px "Inter", monospace';
+
+    const padX = (W - (cols-1)*GAP)/2;
+    const padY = (H - (rows-1)*GAP)/2;
+
+    for(let r=0;r<rows;r++){
+      for(let cl=0;cl<cols;cl++){
+        const cell = grid[r*cols+cl];
+        const x = padX + cl*GAP;
+        const y = padY + r*GAP;
+
+        /* count down delay before morphing */
+        if(cell.delay>0){ cell.delay-=dt; }
+        else {
+          /* morph: fade old out then new in */
+          cell.timer+=dt;
+          cell.t = cell.timer/cell.dur;
+          if(cell.t>=1){
+            /* morph complete — pick next */
+            cell.sym = cell.nextSym;
+            cell.nextSym = SYMS[Math.floor(Math.random()*SYMS.length)];
+            cell.t=1; cell.timer=0;
+            cell.delay = 2000+Math.random()*8000;   /* wait before next morph */
+          }
+        }
+
+        /* draw */
+        let op, sym;
+        if(cell.t>=1 || cell.delay>0){
+          /* static — show current sym */
+          op = 0.35;
+          sym = cell.sym;
+        } else if(cell.t<0.5){
+          /* fading out old symbol */
+          op = 0.35 * (1 - cell.t*2);
+          sym = cell.sym;
+        } else {
+          /* fading in new symbol */
+          op = 0.35 * ((cell.t-0.5)*2);
+          sym = cell.nextSym;
+        }
+        ctx.globalAlpha = op;
+        ctx.fillStyle = '#fff';
+        ctx.fillText(sym, x, y);
+      }
+    }
+    ctx.globalAlpha=1;
+    requestAnimationFrame(loop);
+  }
+
+  window.addEventListener('resize', initGrid);
+  initGrid();
+  requestAnimationFrame(loop);
 })();
 
 /* ── SCROLL REVEAL ── */
