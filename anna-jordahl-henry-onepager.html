@@ -33,7 +33,7 @@
 
     /* ── HERO ── */
     .hero {
-      background: #4a1fb8;
+      background: #8447fd;
       position: relative;
       overflow: hidden;
       padding: 64px 48px 96px;
@@ -41,19 +41,6 @@
       display: flex;
       align-items: center;
     }
-    /* Vivid aurora blobs — no blend mode, high opacity */
-    .hero-aurora { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
-    .ab { position: absolute; border-radius: 50%; filter: blur(80px); }
-    .ab1 { width:620px; height:520px; background: radial-gradient(circle, rgba(140,70,255,0.85) 0%, rgba(100,40,220,0.4) 45%, transparent 72%); top:-160px; left:-100px; animation: a1 14s ease-in-out infinite; }
-    .ab2 { width:560px; height:460px; background: radial-gradient(circle, rgba(60,15,140,0.9) 0%, rgba(40,10,100,0.4) 45%, transparent 72%); top:-60px; right:-140px; animation: a2 18s ease-in-out infinite; }
-    .ab3 { width:480px; height:420px; background: radial-gradient(circle, rgba(120,55,240,0.75) 0%, rgba(80,30,200,0.35) 45%, transparent 70%); bottom:-100px; left:18%; animation: a3 12s ease-in-out infinite; }
-    .ab4 { width:380px; height:340px; background: radial-gradient(circle, rgba(180,110,255,0.65) 0%, transparent 65%); top:25%; right:12%; animation: a4 16s ease-in-out infinite; }
-    .ab5 { width:320px; height:300px; background: radial-gradient(circle, rgba(70,25,180,0.8) 0%, transparent 62%); bottom:-20px; left:5%; animation: a5 20s ease-in-out infinite; }
-    @keyframes a1 { 0%,100%{transform:translate(0,0) scale(1)} 30%{transform:translate(100px,60px) scale(1.12)} 60%{transform:translate(30px,120px) scale(0.94)} 80%{transform:translate(-50px,40px) scale(1.06)} }
-    @keyframes a2 { 0%,100%{transform:translate(0,0) scale(1)} 25%{transform:translate(-90px,80px) scale(1.08)} 55%{transform:translate(50px,-40px) scale(1.14)} 80%{transform:translate(-30px,20px) scale(0.95)} }
-    @keyframes a3 { 0%,100%{transform:translate(0,0) scale(1)} 35%{transform:translate(-120px,-70px) scale(1.16)} 65%{transform:translate(80px,-30px) scale(0.92)} }
-    @keyframes a4 { 0%,100%{transform:translate(0,0) scale(1)} 40%{transform:translate(70px,-60px) scale(1.12)} 75%{transform:translate(-50px,40px) scale(0.88)} }
-    @keyframes a5 { 0%,100%{transform:translate(0,0) scale(1)} 50%{transform:translate(-70px,90px) scale(1.2)} }
 
     /* Soft bottom fade hero → paper */
     .hero::after { content:''; position:absolute; bottom:-2px; left:0; right:0; height:72px; background:linear-gradient(to top, var(--paper), transparent); z-index:2; pointer-events:none; }
@@ -260,13 +247,6 @@
 
 <!-- HERO -->
 <div class="hero">
-  <div class="hero-aurora">
-    <div class="ab ab1"></div>
-    <div class="ab ab2"></div>
-    <div class="ab ab3"></div>
-    <div class="ab ab4"></div>
-    <div class="ab ab5"></div>
-  </div>
   <canvas id="sc"></canvas>
   <div class="hero-inner">
 
@@ -588,43 +568,117 @@
 </div><!-- /wrap -->
 
 <script>
-/* ── PARTICLES ── */
+/* ── GEOMETRIC SHAPES ANIMATION ── */
 (function(){
   const c = document.getElementById('sc');
   const ctx = c.getContext('2d');
-  const SYMS = ['•','○','×','·','=','+','◆','—','★'];
+  /* shape types: 0=diamond, 1=square, 2=circle, 3=plus, 4=cross, 5=dot, 6=ring, 7=hollowSquare */
+  const SHAPES = 8;
   let pts=[], W=0, H=0;
+
   function P(init){
-    this.x=Math.random()*(W||800); this.y=Math.random()*(H||400);
-    this.vx=(Math.random()-.5)*.22; this.vy=(Math.random()-.5)*.22;
-    this.sym=SYMS[Math.floor(Math.random()*SYMS.length)];
-    this.size=6+Math.random()*8;
-    this.maxOp=.04+Math.random()*.12;
-    this.op=init?Math.random()*this.maxOp:0;
-    this.holdFor=90+Math.random()*160; this.held=0;
-    this.spd=.003+Math.random()*.003;
-    this.phase=init?(Math.random()>.5?'hold':'in'):'in';
+    this.x = Math.random()*(W||800);
+    this.y = Math.random()*(H||400);
+    this.vx = (Math.random()-.5)*.35;
+    this.vy = (Math.random()-.5)*.35;
+    this.shape = Math.floor(Math.random()*SHAPES);
+    this.size = 4+Math.random()*14;
+    this.rot = Math.random()*Math.PI*2;
+    this.rotSpd = (Math.random()-.5)*.008;
+    this.maxOp = .12+Math.random()*.35;
+    this.op = init ? Math.random()*this.maxOp : 0;
+    this.holdFor = 200+Math.random()*400;
+    this.held = 0;
+    this.spd = .002+Math.random()*.003;
+    this.phase = init ? (Math.random()>.5?'hold':'in') : 'in';
   }
-  P.prototype.tick=function(){
-    this.x+=this.vx; this.y+=this.vy;
-    if(this.x<-20)this.x=W+20; if(this.x>W+20)this.x=-20;
-    if(this.y<-20)this.y=H+20; if(this.y>H+20)this.y=-20;
-    if(this.phase==='in'){this.op+=this.spd;if(this.op>=this.maxOp){this.op=this.maxOp;this.phase='hold';}}
-    else if(this.phase==='hold'){if(++this.held>=this.holdFor)this.phase='out';}
-    else{this.op-=this.spd;if(this.op<=0)Object.assign(this,new P(false));}
+
+  P.prototype.tick = function(){
+    this.x += this.vx;
+    this.y += this.vy;
+    this.rot += this.rotSpd;
+    if(this.x<-30) this.x=W+30;
+    if(this.x>W+30) this.x=-30;
+    if(this.y<-30) this.y=H+30;
+    if(this.y>H+30) this.y=-30;
+    if(this.phase==='in'){
+      this.op+=this.spd;
+      if(this.op>=this.maxOp){this.op=this.maxOp;this.phase='hold';}
+    } else if(this.phase==='hold'){
+      if(++this.held>=this.holdFor) this.phase='out';
+    } else {
+      this.op-=this.spd;
+      if(this.op<=0) Object.assign(this,new P(false));
+    }
   };
-  function resize(){
-    W=c.width=c.parentElement.offsetWidth;
-    H=c.height=c.parentElement.offsetHeight;
-    pts=Array.from({length:Math.floor(W*H/5200)},(_,i)=>new P(true));
+
+  function drawShape(p){
+    ctx.save();
+    ctx.translate(p.x, p.y);
+    ctx.rotate(p.rot);
+    ctx.globalAlpha = p.op;
+    ctx.strokeStyle = '#fff';
+    ctx.fillStyle = '#fff';
+    ctx.lineWidth = 1.5;
+    const s = p.size;
+
+    switch(p.shape){
+      case 0: /* diamond */
+        ctx.beginPath();
+        ctx.moveTo(0,-s); ctx.lineTo(s,0); ctx.lineTo(0,s); ctx.lineTo(-s,0);
+        ctx.closePath(); ctx.fill();
+        break;
+      case 1: /* filled square */
+        ctx.fillRect(-s*.6,-s*.6, s*1.2, s*1.2);
+        break;
+      case 2: /* circle */
+        ctx.beginPath(); ctx.arc(0,0,s*.6,0,Math.PI*2); ctx.fill();
+        break;
+      case 3: /* plus */
+        ctx.lineWidth = s*.25;
+        ctx.beginPath();
+        ctx.moveTo(0,-s); ctx.lineTo(0,s);
+        ctx.moveTo(-s,0); ctx.lineTo(s,0);
+        ctx.stroke();
+        break;
+      case 4: /* cross / x */
+        ctx.lineWidth = s*.2;
+        ctx.beginPath();
+        ctx.moveTo(-s*.7,-s*.7); ctx.lineTo(s*.7,s*.7);
+        ctx.moveTo(s*.7,-s*.7); ctx.lineTo(-s*.7,s*.7);
+        ctx.stroke();
+        break;
+      case 5: /* dot */
+        ctx.beginPath(); ctx.arc(0,0,s*.3,0,Math.PI*2); ctx.fill();
+        break;
+      case 6: /* ring */
+        ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.arc(0,0,s*.55,0,Math.PI*2); ctx.stroke();
+        break;
+      case 7: /* hollow square */
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(-s*.55,-s*.55, s*1.1, s*1.1);
+        break;
+    }
+    ctx.restore();
   }
+
+  function resize(){
+    W = c.width = c.parentElement.offsetWidth;
+    H = c.height = c.parentElement.offsetHeight;
+    const count = Math.floor(W*H/3200);
+    pts = Array.from({length:count}, ()=>new P(true));
+  }
+
   (function loop(){
     ctx.clearRect(0,0,W,H);
-    pts.forEach(p=>{p.tick();ctx.font=`${p.size}px monospace`;ctx.fillStyle='#fff';ctx.globalAlpha=p.op;ctx.fillText(p.sym,p.x,p.y);});
-    ctx.globalAlpha=1;
+    pts.forEach(p=>{ p.tick(); drawShape(p); });
+    ctx.globalAlpha = 1;
     requestAnimationFrame(loop);
   })();
-  window.addEventListener('resize',resize); resize();
+
+  window.addEventListener('resize', resize);
+  resize();
 })();
 
 /* ── SCROLL REVEAL ── */
